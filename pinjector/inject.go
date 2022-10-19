@@ -13,7 +13,11 @@ const (
 )
 
 func OpenProcessHandle(i *Inject) error {
-	var rights uint32 = PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ
+	var rights uint32 = PROCESS_CREATE_THREAD |
+		PROCESS_QUERY_INFORMATION |
+		PROCESS_VM_OPERATION |
+		PROCESS_VM_WRITE |
+		PROCESS_VM_READ
 	var inheritHandle uint32 = 0
 	var processID uint32 = i.Pid
 	remoteProcHandle, _, lastErr := ProcOpenProcess.Call(
@@ -56,8 +60,9 @@ func WriteProcessMemory(i *Inject) error {
 	writeMem, _, lastErr := ProcWriteProcessMemory.Call(
 		i.RemoteProcHandle,
 		i.Lpaddr,
-		i.DLLBytes,
+		//uintptr(unsafe.Pointer(i.DLLBytes)),
 		uintptr(unsafe.Pointer(dllPathBytes)),
+		uintptr(i.DLLSize),
 		uintptr(unsafe.Pointer(nBytesWritten)))
 	if writeMem == 0 {
 		return errors.Wrap(lastErr, "[!] ERROR : Can't write to process memory.")
