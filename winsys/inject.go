@@ -12,23 +12,6 @@ const (
 	nullRef = 0
 )
 
-type Inject struct {
-	Pid              uint32
-	DllPath          string
-	DLLSize          uint32
-	DLLBytes         uintptr
-	Privilege        string
-	RemoteProcHandle uintptr
-	Lpaddr           uintptr
-	LoadLibAddr      uintptr
-	RThread          uintptr
-	Token            TOKEN
-}
-
-type TOKEN struct {
-	tokenhandle syscall.Token
-}
-
 func OpenProcessHandle(i *Inject) error {
 	var rights uint32 = PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ
 	var inheritHandle uint32 = 0

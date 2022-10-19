@@ -1,6 +1,6 @@
 package pinjector
 
-var (
+const (
 	PROCESS_CREATE_PROCESS            = 0x0080
 	PROCESS_CREATE_THREAD             = 0x0002
 	PROCESS_DUP_HANDLE                = 0x0040

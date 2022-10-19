@@ -6,9 +6,7 @@ var (
 	ModKernel32 = syscall.NewLazyDLL("kernel32.dll")
 	modUser32   = syscall.NewLazyDLL("user32.dll")
 	modAdvapi32 = syscall.NewLazyDLL("Advapi32.dll")
-)
 
-var (
 	ProcOpenProcessToken      = modAdvapi32.NewProc("GetProcessToken")
 	ProcLookupPrivilegeValueW = modAdvapi32.NewProc("LookupPrivilegeValueW")
 	ProcLookupPrivilegeNameW  = modAdvapi32.NewProc("LookupPrivilegeNameW")
