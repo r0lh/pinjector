@@ -53,15 +53,15 @@ func VirtualAllocEx(i *Inject) error {
 
 func WriteProcessMemory(i *Inject) error {
 	var nBytesWritten *byte
-	dllPathBytes, err := syscall.BytePtrFromString(i.DllPath)
-	if err != nil {
-		return err
-	}
+	//	dllPathBytes, err := syscall.BytePtrFromString(i.DllPath)
+	//	if err != nil {
+	//		return err
+	//	}
 	writeMem, _, lastErr := ProcWriteProcessMemory.Call(
 		i.RemoteProcHandle,
 		i.Lpaddr,
-		//uintptr(unsafe.Pointer(i.DLLBytes)),
-		uintptr(unsafe.Pointer(dllPathBytes)),
+		uintptr(unsafe.Pointer(i.DLLBytes)),
+		//uintptr(unsafe.Pointer(dllPathBytes)),
 		uintptr(i.DLLSize),
 		uintptr(unsafe.Pointer(nBytesWritten)))
 	if writeMem == 0 {
@@ -97,8 +97,8 @@ func CreateRemoteThread(i *Inject) error {
 		i.RemoteProcHandle,
 		uintptr(nullRef),
 		uintptr(nullRef),
-		i.LoadLibAddr,
 		i.Lpaddr,
+		uintptr(nullRef),
 		uintptr(dwCreationFlags),
 		uintptr(unsafe.Pointer(&threadId)),
 	)

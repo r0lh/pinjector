@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"unsafe"
 
 	"github.com/r0lh/pinjector/pinjector"
 )
@@ -20,23 +22,21 @@ func main() {
 		fmt.Println("[!] ERROR : use -f and -p.")
 	}
 
-	//	payload, err := os.ReadFile(*scFlag)
-	//	if err != nil {
-	//		log.Fatal("[!] ERROR : Can't read dll.", err)
-	//	}
-
-	//	fmt.Printf("[-] Loaded Shellcode (%v bytes)\n", len(payload))
-
-	inj := pinjector.Inject{
-		DllPath: *scFlag,
-		DLLSize: uint32(len(*scFlag)),
-		//DLLBytes: uintptr(unsafe.Pointer(&dllBytes[0])),
-		//DLLBytes: uintptr(unsafe.Pointer(&payload[0])),
-		//DLLSize:  uint32(len(payload)),
-		Pid: uint32(*pidFlag),
+	payload, err := os.ReadFile(*scFlag)
+	if err != nil {
+		log.Fatal("[!] ERROR : Can't read dll.", err)
 	}
 
-	err := pinjector.OpenProcessHandle(&inj)
+	inj := pinjector.Inject{
+		//DllPath: *scFlag,
+		//DLLSize: uint32(len(*scFlag)),
+		//DLLBytes: uintptr(unsafe.Pointer(&dllBytes[0])),
+		DLLBytes: uintptr(unsafe.Pointer(&payload[0])),
+		DLLSize:  uint32(len(payload)),
+		Pid:      uint32(*pidFlag),
+	}
+
+	err = pinjector.OpenProcessHandle(&inj)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,10 +51,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = pinjector.GetLoadLibAddress(&inj)
-	if err != nil {
-		log.Fatal(err)
-	}
+	//	err = pinjector.GetLoadLibAddress(&inj)
+	//	if err != nil {
+	//		log.Fatal(err)
+	//	}
 
 	err = pinjector.CreateRemoteThread(&inj)
 	if err != nil {
